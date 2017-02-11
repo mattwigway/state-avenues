@@ -36,3 +36,33 @@ First, we need to extract intersections. To do that, run
     extract_intersections.py dc.osm.pbf states.csv intersections.json
 
 Voila! Intersections are in the GeoJSON. That was easy.
+
+## Create the distance matrix
+
+To do this, we need to compute on-street distances. We will use [Project OSRM](http://project-osrm.org).
+We'll need to run our own OSRM server, this is a big batch job and it wouldn't be nice to hammer
+someone else's server with it (we need to compute approximately 3800^2 travel times).
+
+First, install OSRM. On Mac
+
+    brew install osrm-backend
+
+Next, build an OSRM graph. Note that using the DC PBF will mean the route will not leave the District of Columbia
+even if it's faster to go through Maryland or Virginia.
+
+    mkdir osrm
+    cd osrm
+    osrm-extract -p /usr/local/Cellar/osrm-backend/5.4.3_2/share/osrm-backend/profiles/car.lua ../dc.osm.pbf
+    osrm-contract dc.osrm
+
+Start the server with the following, increasing the maximum table size
+
+    osrm-routed --max-table-size=5000 dc.osrm
+
+It's fine to click 'Deny' when asked if you want to allow incoming connections, as long as you're doing all of your work on one machine.
+
+Now, extract the matrix:
+
+    python createDistanceTable.py intersections.json http://localhost:5000/ matrix.csv
+
+(that may take 1 or 2 minutes, OSRM is impressively fast though)
